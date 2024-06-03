@@ -46,8 +46,8 @@ def generate_signature_yt(content, user_account, token):
     return signature_hash.upper()
 
 url_tk_token = "https://auth.tiktok-shops.com/api/v2/token/get"
-tk_app_key = "REPLACE_WITH_APP_KEY"
-tk_app_secret = "REPLACE_WITH_APP_SECRET"
+tk_app_key = "6bv93b6ooeim9"
+tk_app_secret = "dd17da7479460a5f0af8e1167eeca7577f247aa4"
 param = {}
 app = Flask(__name__)
 data = {}
@@ -57,8 +57,8 @@ path = ""
 timestamp = ""
 contents = []
 
-yt_user_account = "REPLACE_WITH_USER_ACCOUNT"
-yt_token = "REPLACE_WITH_TOKEN"
+yt_user_account = "Wbb2C6"
+yt_token = "954D0F1A8D16809AFAE87F32D46EE3E4"
 yt_api_url = "http://fg.yitonggroups.com/api.php?mod=apiManage&act=createOrder"
 
 @app.route('/callback')
@@ -149,69 +149,81 @@ def callback():
                 'version': "202309",
                 'document_type':'SHIPPING_LABEL'
                 }
+            package_map = {} #map to store package_id: {sku:sku, qty:#}
+            contents = []
+
             for order in data["data"]["orders"]:
-                # Initialize the order map
-                order_map = {}
-                order_package_map = {}
 
-                # Track the first tracking number (assuming all items share the same tracking number)
-                tracking_number = order["line_items"][0]["tracking_number"]
-                package_id = order["line_items"][0]["package_id"]
-                path = f"/fulfillment/202309/packages/{package_id}/shipping_documents"
-                params['package_id'] = package_id
-                # Generate the signature
-                signature = generate_signature_tk(tk_app_secret, path, params)
-                params['sign'] = signature
+                for package in order["packages"]:
+                    package_id = package["id"]
+                    if package_id not in package_map:
+                        package_map[package_id] = {}
+                        #fetch shipping label 
+                        path = f"/fulfillment/202309/packages/{package_id}/shipping_documents"
+                        params['package_id'] = package_id
+                        signature = generate_signature_tk(tk_app_secret, path, params)
+                        params['sign'] = signature
+                        headers = {
+                            'Content-Type': 'application/json',
+                            'x-tts-access-token': access_token
+                        }
+                        query_string = urlencode(params)
+                        full_url = f"{tk_base_url}{path}?{query_string}"
+                        responses = requests.get(full_url, headers=headers)
+                        document_data = responses.json()
+                        #label document here!
+                        document_base64 = pdf_to_base64(document_data["data"]["doc_url"])
 
-                # Set up headers
-                headers = {
-                    'Content-Type': 'application/json',
-                    'x-tts-access-token': access_token
-                }
-                query_string = urlencode(params)
-                full_url = f"{tk_base_url}{path}?{query_string}"
-    
-                # Send the request
-                responses = requests.get(full_url, headers=headers)
-                print("URL Requested:", full_url)
-                print("Response:", responses.json())
-                document_data = responses.json()
-    
-                #print(document_data)
-                document_base64 =pdf_to_base64(document_data["data"]["doc_url"])
-    
-                # Aggregate the SKU quantities
-                for item in order["line_items"]:
-                    if item["seller_sku"] in order_map:
-                        order_map[item["seller_sku"]] += 1
-                    else:
-                        order_map[item["seller_sku"]] = 1
+                        #fetch package sku qty detail
+                        timestamp = str(int(time.time()))
+                        params = {
+                            'app_key': tk_app_key,
+                            'shop_id': shop_id,
+                            'shop_cipher': shop_cipher,
+                            'timestamp': timestamp,
+                            'version': "202309",
+                            'package_id' : package_id
+                        }
+                        path = f"/fulfillment/202309/packages/{package_id}"
+                        signature = generate_signature_tk(tk_app_secret, path, params)
+                        params['sign'] = signature
+                        headers = {
+                            'Content-Type': 'application/json',
+                            'x-tts-access-token': access_token
+                        }
+                        query_string = urlencode(params)
+            
+                        full_url = f"{tk_base_url}{path}?{query_string}"
+                        responses = requests.get(full_url, headers=headers)
+                        document_data = responses.json()
+                        print(document_data)
+                        for order in document_data["data"]["orders"]:
+                            for sku_info in order["skus"]:
+                                if sku_info["name"] not in package_map[package_id]:
+                                    package_map[package_id][sku_info["name"]] = sku_info["quantity"]
+                                else:
+                                    package_map[package_id][sku_info["name"]] += sku_info["quantity"]
 
-                # Prepare SKU info list
-                sku_info = [{"userSku": sku #need to change
-                            , "qty": order_map[sku]} for sku in order_map]
-
-                # Create a content dictionary for each order
-                content = {
-                    "address": "16146 Meadowhouse Ave",
-                    "carrierCode":"FHDCAT",
-                    "city": "Chino",
-                    "countryCode": "US",
-                    "label": document_base64,
-                    "orderId": order["id"],
-                    "platform": "amazon",
-                    "postCode": "91708",
-                    "receiveUser": "test888",
-                    "skuInfo": sku_info,
-                    "state": "CA",
-                    "storeCode": "USYTCAT",
-                    "tel": "6266243797",
-                    "trackNo": tracking_number
-                }
-
-                contents.append(content)
-
-                #print(json.dumps(content, indent=4))
+                        sku_info = [{"userSku": sku #need to change
+                                        , "qty": package_map[package_id][sku]} for sku in package_map[package_id]]
+            
+                        content = {
+                                "address": "16146 Meadowhouse Ave",
+                                "carrierCode":"FHDCAT",
+                                "city": "Chino",
+                                "countryCode": "US",
+                                "label": document_base64,
+                                "orderId": package_id,
+                                "platform": "tiktok shop",
+                                "postCode": "91708",
+                                "receiveUser": "test888",
+                                "skuInfo": sku_info,
+                                "state": "CA",
+                                "storeCode": "USYTCAT",
+                                "tel": "6266243797",
+                                "trackNo": document_data["data"]["tracking_number"]
+                            }
+                        contents.append(content)
 
             print(contents)
 
@@ -227,13 +239,12 @@ def callback():
                 "userAccount": yt_user_account
             }
 
-            # Make the POST request
+            # Make the YT Warehouse POST request
             response = requests.post(yt_api_url, data=form_data)
             print("Status Code:", response.status_code)
             print("Response:", response.text)
 
-            return f"Access Token: {access_token}"
-            # Here you can handle the access token (store it, use it for further API calls, etc.)
+            return f"Connection success!!!\nPlase go back to terminal to confirm how many order to ship."
         else:
             return f"Failed to retrieve access token:"
     else:
