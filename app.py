@@ -47,7 +47,7 @@ def generate_signature_yt(content, user_account, token):
 
 url_tk_token = "https://auth.tiktok-shops.com/api/v2/token/get"
 tk_app_key = "REPLACE_WITH_APP_KEY"
-tk_app_secret = "REPLACE_WITH_APP_SECRET_PROVIDED"
+tk_app_secret = "REPLACE_WITH_APP_SECRET"
 param = {}
 app = Flask(__name__)
 data = {}
@@ -57,8 +57,8 @@ path = ""
 timestamp = ""
 contents = []
 
-yt_user_account = "REPLACE_WITH_YT_USER_ACCOUNT_PROVIDED"
-yt_token = "REPLACE_WITH_YT_ACCESS_TOKEN"
+yt_user_account = "REPLACE_WITH_USER_ACCOUNT"
+yt_token = "REPLACE_WITH_TOKEN"
 yt_api_url = "http://fg.yitonggroups.com/api.php?mod=apiManage&act=createOrder"
 
 @app.route('/callback')
@@ -188,8 +188,8 @@ def callback():
                         order_map[item["seller_sku"]] = 1
 
                 # Prepare SKU info list
-                sku_info = [{"userSku": "kabut001"#need to change
-                            , "qty": qty} for sku, qty in order_map.items()]
+                sku_info = [{"userSku": sku #need to change
+                            , "qty": order_map[sku]} for sku in order_map]
 
                 # Create a content dictionary for each order
                 content = {
@@ -228,9 +228,9 @@ def callback():
             }
 
             # Make the POST request
-            #response = requests.post(yt_api_url, data=form_data)
-            #print("Status Code:", response.status_code)
-            #print("Response:", response.text)
+            response = requests.post(yt_api_url, data=form_data)
+            print("Status Code:", response.status_code)
+            print("Response:", response.text)
 
             return f"Access Token: {access_token}"
             # Here you can handle the access token (store it, use it for further API calls, etc.)
