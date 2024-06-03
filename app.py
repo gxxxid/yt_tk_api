@@ -46,8 +46,8 @@ def generate_signature_yt(content, user_account, token):
     return signature_hash.upper()
 
 url_tk_token = "https://auth.tiktok-shops.com/api/v2/token/get"
-tk_app_key = "6bv93b6ooeim9"
-tk_app_secret = "dd17da7479460a5f0af8e1167eeca7577f247aa4"
+tk_app_key = "KEY_TO_BE_REPLACE"
+tk_app_secret = "SECRET_TO_BE_REPLACE"
 param = {}
 app = Flask(__name__)
 data = {}
@@ -57,8 +57,8 @@ path = ""
 timestamp = ""
 contents = []
 
-yt_user_account = "Wbb2C6"
-yt_token = "954D0F1A8D16809AFAE87F32D46EE3E4"
+yt_user_account = "USER_ACCOUNT_TO_BE_REPLACE"
+yt_token = "YT_TOKEN_TO_BE_REPLACE"
 yt_api_url = "http://fg.yitonggroups.com/api.php?mod=apiManage&act=createOrder"
 
 @app.route('/callback')
